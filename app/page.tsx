@@ -71,11 +71,11 @@ export default function Home() {
         <nav>
           {["Overview", "Resources", "Reservations"].map((item) => <button key={item} className={`nav-item ${activePage === item ? "active" : ""}`} onClick={() => setActivePage(item)}><span>{item === "Overview" ? "▦" : item === "Resources" ? "▧" : "◷"}</span>{item}</button>)}
         </nav>
-        <div className="sidebar-bottom"><button className="nav-item"><span>⚙</span>Settings</button><div className="profile"><span className="avatar">MS</span><span><b>Meera Silva</b><small>Workspace admin</small></span><span>⋮</span></div></div>
+        <div className="sidebar-bottom"><button className="nav-item"><span>⚙</span>Settings</button><div className="profile"><span className="avatar">MS</span><span><b>Chethiya Bandara</b><small>Workspace admin</small></span><span>⋮</span></div></div>
       </aside>
 
       <section className="content">
-        <header className="topbar"><div><p className="eyebrow">Tuesday, October 13</p><h1>{activePage === "Overview" ? "Good morning, Meera" : activePage}</h1></div><div className="top-actions"><button className="icon-button" aria-label="Notifications">♧<i /></button><button className="primary-button" onClick={() => setIsFormOpen(true)}><span>＋</span> New reservation</button></div></header>
+        <header className="topbar"><div><p className="eyebrow">Tuesday, October 13</p><h1>{activePage === "Overview" ? "Good morning, Chethiya" : activePage}</h1></div><div className="top-actions"><button className="icon-button" aria-label="Notifications">♧<i /></button><button className="primary-button" onClick={() => setIsFormOpen(true)}><span>＋</span> New reservation</button></div></header>
         {notice && <div className="notice">✓ {notice}<button onClick={() => setNotice("")}>×</button></div>}
 
         {activePage === "Overview" && <>

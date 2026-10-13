@@ -6,3 +6,59 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum UserRole {
+  ADMIN
+  MEMBER
+}
+
+enum ResourceStatus {
+  AVAILABLE
+  MAINTENANCE
+}
+
+enum ReservationStatus {
+  CONFIRMED
+  CANCELLED
+}
+
+model User {
+  id           String        @id @default(uuid()) @db.Uuid
+  name         String
+  email        String        @unique
+  role         UserRole      @default(MEMBER)
+  reservations Reservation[]
+  createdAt    DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @db.Timestamptz(6)
+}
+
+model Resource {
+  id           String         @id @default(uuid()) @db.Uuid
+  name         String         @unique
+  type         String
+  location     String
+  capacity     Int
+  status       ResourceStatus @default(AVAILABLE)
+  reservations Reservation[]
+  createdAt    DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime       @updatedAt @db.Timestamptz(6)
+}
+
+model Reservation {
+  id        String            @id @default(uuid()) @db.Uuid
+  title     String
+  startTime DateTime          @db.Timestamptz(6)
+  endTime   DateTime          @db.Timestamptz(6)
+  status    ReservationStatus @default(CONFIRMED)
+
+  resourceId String   @db.Uuid
+  userId     String   @db.Uuid
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Restrict)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([resourceId, startTime, endTime])
+  @@index([userId, startTime])
+}
