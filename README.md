@@ -111,6 +111,19 @@ npm run lint
 npm run format:check
 ```
 
+## Automated tests
+
+Start Docker Desktop and the local PostgreSQL container before running the test suite:
+
+```bash
+docker compose up -d
+npm test
+```
+
+The suite covers reservation ownership, maintenance conflicts, simultaneous overlapping booking
+protection, and rebooking after a cancellation. It creates and removes its own temporary database
+records.
+
 ## Prototype boundaries
 
-Before a public deployment, add signed sessions, invite-only admin creation, password reset, rate limiting, audit logs, and automated tests.
+Before a public deployment, add signed sessions, invite-only admin creation, password reset, rate limiting, and audit logs.

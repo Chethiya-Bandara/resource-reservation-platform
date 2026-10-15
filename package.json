@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "postinstall": "prisma skills sync || exit 0"
@@ -33,6 +34,7 @@
     "prettier": "^3.9.10",
     "prisma": "^7.10.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }
