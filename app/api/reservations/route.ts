@@ -17,8 +17,17 @@ export async function POST(request: Request) {
   const startTime = new Date(typeof body.startTime === "string" ? body.startTime : "");
   const endTime = new Date(typeof body.endTime === "string" ? body.endTime : "");
 
-  if (!resourceId || !title || Number.isNaN(startTime.valueOf()) || Number.isNaN(endTime.valueOf()) || endTime <= startTime) {
-    return Response.json({ error: "Provide a resource, title, and a valid time range." }, { status: 400 });
+  if (
+    !resourceId ||
+    !title ||
+    Number.isNaN(startTime.valueOf()) ||
+    Number.isNaN(endTime.valueOf()) ||
+    endTime <= startTime
+  ) {
+    return Response.json(
+      { error: "Provide a resource, title, and a valid time range." },
+      { status: 400 },
+    );
   }
 
   await ensureDemoData();
@@ -38,6 +47,9 @@ export async function POST(request: Request) {
 
     return Response.json({ reservation }, { status: 201 });
   } catch {
-    return Response.json({ error: "This resource already has a reservation in that time range." }, { status: 409 });
+    return Response.json(
+      { error: "This resource already has a reservation in that time range." },
+      { status: 409 },
+    );
   }
 }

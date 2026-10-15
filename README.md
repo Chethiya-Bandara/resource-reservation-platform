@@ -99,10 +99,10 @@ The supplied value works with the local `docker-compose.yml` configuration. Do n
 
 The login screen seeds and uses these prototype accounts automatically:
 
-| Role shown in UI | Name | Email | Database role |
-| --- | --- | --- | --- |
-| Admin | Chethiya Bandara | `chethiya@reservely.local` | `ADMIN` |
-| User | Maya Chen | `maya@reservely.local` | `MEMBER` |
+| Role shown in UI | Name             | Email                      | Database role |
+| ---------------- | ---------------- | -------------------------- | ------------- |
+| Admin            | Chethiya Bandara | `chethiya@reservely.local` | `ADMIN`       |
+| User             | Maya Chen        | `maya@reservely.local`     | `MEMBER`      |
 
 The prototype login is a role selector, not password-based authentication. See [Prototype limitations](#prototype-limitations) before deploying the application outside a local development environment.
 
@@ -132,28 +132,28 @@ The schema is defined in [prisma/schema.prisma](prisma/schema.prisma), and the i
 
 Authorization is enforced by the API routes as well as the interface.
 
-| Action | Admin | User |
-| --- | --- | --- |
-| View the daily confirmed-bookings schedule | Yes | Yes |
-| View/manage all reservations | Yes | No |
-| Create a reservation | Yes | Yes |
-| Edit/cancel own reservation | Yes | Yes |
-| Edit/cancel another user’s reservation | Yes | No |
-| Add a resource | Yes | No |
-| Set a meeting room to Available or Maintenance | Yes | No |
+| Action                                         | Admin | User |
+| ---------------------------------------------- | ----- | ---- |
+| View the daily confirmed-bookings schedule     | Yes   | Yes  |
+| View/manage all reservations                   | Yes   | No   |
+| Create a reservation                           | Yes   | Yes  |
+| Edit/cancel own reservation                    | Yes   | Yes  |
+| Edit/cancel another user’s reservation         | Yes   | No   |
+| Add a resource                                 | Yes   | No   |
+| Set a meeting room to Available or Maintenance | Yes   | No   |
 
 ## API routes
 
-| Method | Route | Purpose |
-| --- | --- | --- |
-| `GET` | `/api/auth/me` | Retrieve the current session user. |
-| `POST` | `/api/auth/login` | Start a demo Admin or User session. |
-| `POST` | `/api/auth/logout` | Clear the current session. |
-| `GET` | `/api/dashboard` | Load resources, role-scoped reservations, and all confirmed bookings for today. |
-| `POST` | `/api/reservations` | Create a reservation for the signed-in user. |
-| `PATCH` | `/api/reservations/:id` | Update or cancel a reservation, subject to ownership/role checks. |
-| `POST` | `/api/resources` | Add a resource as an administrator. |
-| `PATCH` | `/api/resources/:id` | Change a meeting room’s status as an administrator. |
+| Method  | Route                   | Purpose                                                                         |
+| ------- | ----------------------- | ------------------------------------------------------------------------------- |
+| `GET`   | `/api/auth/me`          | Retrieve the current session user.                                              |
+| `POST`  | `/api/auth/login`       | Start a demo Admin or User session.                                             |
+| `POST`  | `/api/auth/logout`      | Clear the current session.                                                      |
+| `GET`   | `/api/dashboard`        | Load resources, role-scoped reservations, and all confirmed bookings for today. |
+| `POST`  | `/api/reservations`     | Create a reservation for the signed-in user.                                    |
+| `PATCH` | `/api/reservations/:id` | Update or cancel a reservation, subject to ownership/role checks.               |
+| `POST`  | `/api/resources`        | Add a resource as an administrator.                                             |
+| `PATCH` | `/api/resources/:id`    | Change a meeting room’s status as an administrator.                             |
 
 ## Common commands
 
