@@ -48,27 +48,6 @@ export function LoginScreen({
           ) : mode === "login" ? (
             <>
               <p>Sign in with your account.</p>
-              <div className="demo-credentials">
-                <p>
-                  <strong>Demo Credentials</strong>
-                </p>
-
-                <p>
-                  <strong>User</strong>
-                  <br />
-                  Email: User@gmail.com
-                  <br />
-                  Password: User_123
-                </p>
-
-                <p>
-                  <strong>Admin</strong>
-                  <br />
-                  Email: Admin@gmail.com
-                  <br />
-                  Password: Admin_123
-                </p>
-              </div>
               <form onSubmit={onLogin}>
                 <label>
                   Email

@@ -54,11 +54,6 @@ The landing page lets visitors choose Login or Register. Registration requires a
 
 Seeded local accounts are initialized when authentication or dashboard data is used:
 
-| Role  | Email             | Password    |
-| ----- | ----------------- | ----------- |
-| Admin | `Admin@gmail.com` | `Admin_123` |
-| User  | `User@gmail.com`  | `User_123`  |
-
 Public admin registration is enabled only for this prototype. It should be made invite-only before production use.
 
 ## Permissions
