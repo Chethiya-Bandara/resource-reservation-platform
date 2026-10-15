@@ -30,15 +30,25 @@ button {
   min-height: 100vh;
   display: flex;
   background: var(--canvas);
+  padding-left: 244px;
 }
 .sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+
   width: 244px;
-  min-height: 100vh;
+  height: 100dvh;
+
   padding: 28px 16px 18px;
   display: flex;
   flex-direction: column;
+
   background: #fff;
   border-right: 1px solid var(--line);
+
+  overflow-y: auto;
+  z-index: 10;
 }
 .brand {
   display: flex;
@@ -215,7 +225,7 @@ nav {
   margin-right: 3px;
 }
 .secondary-button {
-  background: #f0eef6;
+  background: #e6defe;
   color: #514d61;
 }
 .notice {
@@ -226,12 +236,26 @@ nav {
   margin: -18px 0 20px;
   font-size: 14px;
 }
+.form-error {
+  margin: 0 0 16px;
+  padding: 11px 12px;
+  border: 1px solid #f1a7a7;
+  border-radius: 7px;
+  background: #fff0f0;
+  color: #a32121;
+  font-size: 14px;
+}
 .notice button {
   float: right;
   border: 0;
   background: none;
   color: inherit;
   font-size: 17px;
+}
+.notice-error {
+  background: #fff0f0;
+  color: #a32121;
+  border: 1px solid #f1a7a7;
 }
 .stat-grid {
   display: grid;
@@ -382,6 +406,17 @@ nav {
 .resource-card h3 {
   font-size: 15px;
   margin: 10px 0 4px;
+}
+.resource-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.resource-title span {
+  color: #777386;
+  font-size: 12px;
+  white-space: nowrap;
 }
 .resource-card p {
   font-size: 12px;

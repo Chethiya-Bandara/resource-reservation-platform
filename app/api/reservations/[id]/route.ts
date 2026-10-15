@@ -1,6 +1,7 @@
 import { currentUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ResourceStatus } from "@/src/generated/prisma/enums";
+import { parseWorkspaceDateTime } from "@/lib/workspace-time";
 
 export async function PATCH(request: Request, context: RouteContext<"/api/reservations/[id]">) {
   const user = await currentUser();
@@ -33,8 +34,8 @@ export async function PATCH(request: Request, context: RouteContext<"/api/reserv
 
   const title = typeof body.title === "string" ? body.title.trim() : "";
   const resourceId = typeof body.resourceId === "string" ? body.resourceId : "";
-  const startTime = new Date(typeof body.startTime === "string" ? body.startTime : "");
-  const endTime = new Date(typeof body.endTime === "string" ? body.endTime : "");
+  const startTime = parseWorkspaceDateTime(body.startTime);
+  const endTime = parseWorkspaceDateTime(body.endTime);
   if (
     !title ||
     !resourceId ||
@@ -47,9 +48,23 @@ export async function PATCH(request: Request, context: RouteContext<"/api/reserv
       { status: 400 },
     );
   }
+  if (startTime < new Date()) {
+    return Response.json(
+      { error: "Reservations cannot be made for past dates and times." },
+      { status: 400 },
+    );
+  }
   const resource = await prisma.resource.findUnique({ where: { id: resourceId } });
   if (!resource || resource.status !== ResourceStatus.AVAILABLE)
     return Response.json({ error: "This resource is unavailable." }, { status: 400 });
+  const maintenanceConflict = await prisma.maintenanceWindow.findFirst({
+    where: { resourceId, startTime: { lt: endTime }, endTime: { gt: startTime } },
+  });
+  if (maintenanceConflict)
+    return Response.json(
+      { error: "This resource is scheduled for maintenance during that time." },
+      { status: 409 },
+    );
 
   try {
     const updatedReservation = await prisma.reservation.update({

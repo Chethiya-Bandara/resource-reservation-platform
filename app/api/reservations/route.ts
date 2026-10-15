@@ -2,6 +2,7 @@ import { ResourceStatus } from "@/src/generated/prisma/enums";
 import { currentUser } from "@/lib/auth";
 import { ensureDemoData } from "@/lib/demo-data";
 import { prisma } from "@/lib/prisma";
+import { parseWorkspaceDateTime } from "@/lib/workspace-time";
 
 type ReservationInput = {
   resourceId?: unknown;
@@ -14,8 +15,8 @@ export async function POST(request: Request) {
   const body = (await request.json()) as ReservationInput;
   const resourceId = typeof body.resourceId === "string" ? body.resourceId : "";
   const title = typeof body.title === "string" ? body.title.trim() : "";
-  const startTime = new Date(typeof body.startTime === "string" ? body.startTime : "");
-  const endTime = new Date(typeof body.endTime === "string" ? body.endTime : "");
+  const startTime = parseWorkspaceDateTime(body.startTime);
+  const endTime = parseWorkspaceDateTime(body.endTime);
 
   if (
     !resourceId ||
@@ -30,6 +31,13 @@ export async function POST(request: Request) {
     );
   }
 
+  if (startTime < new Date()) {
+    return Response.json(
+      { error: "Reservations cannot be made for past dates and times." },
+      { status: 400 },
+    );
+  }
+
   await ensureDemoData();
   const user = await currentUser();
   if (!user) return Response.json({ error: "Sign in to create a reservation." }, { status: 401 });
@@ -38,6 +46,14 @@ export async function POST(request: Request) {
   if (!resource || resource.status !== ResourceStatus.AVAILABLE) {
     return Response.json({ error: "This resource is unavailable." }, { status: 400 });
   }
+  const maintenanceConflict = await prisma.maintenanceWindow.findFirst({
+    where: { resourceId, startTime: { lt: endTime }, endTime: { gt: startTime } },
+  });
+  if (maintenanceConflict)
+    return Response.json(
+      { error: "This resource is scheduled for maintenance during that time." },
+      { status: 409 },
+    );
 
   try {
     const reservation = await prisma.reservation.create({

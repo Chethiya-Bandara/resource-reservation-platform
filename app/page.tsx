@@ -1,73 +1,36 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-type User = { id: string; name: string; role: "ADMIN" | "MEMBER" };
-type ApiResource = {
-  id: string;
-  name: string;
-  type: string;
-  location: string;
-  capacity: number;
-  status: "AVAILABLE" | "MAINTENANCE";
-};
-type ApiReservation = {
-  id: string;
-  title: string;
-  startTime: string;
-  endTime: string;
-  resource: ApiResource;
-  user: User;
-};
-type Resource = ApiResource & {
-  displayStatus: "Available" | "In use" | "Maintenance";
-  color: string;
-};
-type Reservation = ApiReservation & { time: string; displayStatus: "Confirmed" | "Upcoming" };
+import {
+  LoginScreen,
+  MaintenanceForm,
+  ReservationForm,
+  ResourceCard,
+  ResourceForm,
+  Schedule,
+  Stat,
+} from "@/app/components/reservation-ui";
+import {
+  mapDashboard,
+  resourceTypeLabels,
+  type Reservation,
+  type MaintenanceSchedule,
+  type Resource,
+  type User,
+} from "@/lib/reservation-types";
+import {
+  formatWorkspaceTime,
+  parseWorkspaceDateTime,
+  toWorkspaceDateInputValue,
+} from "@/lib/workspace-time";
 
-const colors: Record<string, string> = {
-  "Orchid Meeting Room": "violet",
-  "Focus Room 02": "orange",
-  "Design Lab": "blue",
-  "Projector Kit A": "rose",
-};
-const today = () => new Date().toISOString().slice(0, 10);
-const time = (value: string) =>
-  new Intl.DateTimeFormat("en", { hour: "2-digit", minute: "2-digit", hour12: false }).format(
-    new Date(value),
-  );
-const date = (value: string) => new Date(value).toISOString().slice(0, 10);
-
-function mapDashboard(data: {
-  resources: ApiResource[];
-  reservations: ApiReservation[];
-  todayReservations: ApiReservation[];
-}) {
-  const now = new Date();
-  const activeResourceIds = new Set(
-    data.todayReservations
-      .filter((item) => new Date(item.startTime) <= now && new Date(item.endTime) > now)
-      .map((item) => item.resource.id),
-  );
-  const toReservation = (reservation: ApiReservation): Reservation => ({
-    ...reservation,
-    time: `${time(reservation.startTime)} - ${time(reservation.endTime)}`,
-    displayStatus: new Date(reservation.startTime) > now ? "Upcoming" : "Confirmed",
-  });
-  return {
-    resources: data.resources.map((resource): Resource => ({
-      ...resource,
-      color: colors[resource.name] ?? "blue",
-      displayStatus:
-        resource.status === "MAINTENANCE"
-          ? "Maintenance"
-          : activeResourceIds.has(resource.id)
-            ? "In use"
-            : "Available",
-    })),
-    reservations: data.reservations.map(toReservation),
-    todayReservations: data.todayReservations.map(toReservation),
-  };
+async function requestJson(url: string, options?: RequestInit) {
+  const response = await fetch(url, options);
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error ?? "The request could not be completed.");
+  return result;
 }
 
 export default function Home() {
@@ -77,25 +40,28 @@ export default function Home() {
   const [resources, setResources] = useState<Resource[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [todayReservations, setTodayReservations] = useState<Reservation[]>([]);
+  const [maintenanceSchedules, setMaintenanceSchedules] = useState<MaintenanceSchedule[]>([]);
   const [isReservationFormOpen, setReservationFormOpen] = useState(false);
   const [isResourceFormOpen, setResourceFormOpen] = useState(false);
+  const [maintenanceResource, setMaintenanceResource] = useState<Resource | null>(null);
+  const [editingMaintenance, setEditingMaintenance] = useState<MaintenanceSchedule | null>(null);
   const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
   const [selectedResourceId, setSelectedResourceId] = useState("");
   const [bookingDate, setBookingDate] = useState("");
   const [query, setQuery] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [bookingError, setBookingError] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   async function loadDashboard() {
-    const response = await fetch("/api/dashboard", { cache: "no-store" });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error ?? "Could not load reservation data.");
+    const result = await requestJson("/api/dashboard", { cache: "no-store" });
     const dashboard = mapDashboard(result);
     setResources(dashboard.resources);
     setReservations(dashboard.reservations);
     setTodayReservations(dashboard.todayReservations);
+    setMaintenanceSchedules(dashboard.maintenanceSchedules);
     setSelectedResourceId(
       (current) =>
         current ||
@@ -108,8 +74,7 @@ export default function Home() {
     const initializeTimer = window.setTimeout(() => {
       void (async () => {
         try {
-          const response = await fetch("/api/auth/me", { cache: "no-store" });
-          const result = await response.json();
+          const result = await requestJson("/api/auth/me", { cache: "no-store" });
           if (result.user) {
             setUser(result.user);
             await loadDashboard();
@@ -128,13 +93,11 @@ export default function Home() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/auth/login", {
+      const result = await requestJson("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role }),
       });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error ?? "Could not sign in.");
       setUser(result.user);
       await loadDashboard();
     } catch (loginError) {
@@ -143,7 +106,6 @@ export default function Home() {
       setLoading(false);
     }
   }
-
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
     setUser(null);
@@ -153,20 +115,26 @@ export default function Home() {
     setActivePage("Overview");
     setNotice("");
   }
-
   async function submitReservation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const values = new FormData(event.currentTarget);
+    const startTime = `${values.get("date")}T${values.get("start")}:00`;
+    const endTime = `${values.get("date")}T${values.get("end")}:00`;
+    if (parseWorkspaceDateTime(startTime) < new Date()) {
+      setBookingError("Reservations cannot be made for past dates and times.");
+      return;
+    }
     setSubmitting(true);
     setError("");
+    setBookingError("");
+    const payload = {
+      resourceId: values.get("resourceId"),
+      title: values.get("title"),
+      startTime,
+      endTime,
+    };
     try {
-      const payload = {
-        resourceId: values.get("resourceId"),
-        title: values.get("title"),
-        startTime: `${values.get("date")}T${values.get("start")}:00`,
-        endTime: `${values.get("date")}T${values.get("end")}:00`,
-      };
-      const response = await fetch(
+      const result = await requestJson(
         editingReservation ? `/api/reservations/${editingReservation.id}` : "/api/reservations",
         {
           method: editingReservation ? "PATCH" : "POST",
@@ -174,8 +142,6 @@ export default function Home() {
           body: JSON.stringify(editingReservation ? { action: "UPDATE", ...payload } : payload),
         },
       );
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error ?? "Could not create the reservation.");
       await loadDashboard();
       setNotice(
         editingReservation
@@ -185,7 +151,7 @@ export default function Home() {
       setReservationFormOpen(false);
       setEditingReservation(null);
     } catch (reservationError) {
-      setError(
+      setBookingError(
         reservationError instanceof Error
           ? reservationError.message
           : "Could not create the reservation.",
@@ -194,17 +160,14 @@ export default function Home() {
       setSubmitting(false);
     }
   }
-
   async function cancelReservation(id: string) {
     setError("");
     try {
-      const response = await fetch(`/api/reservations/${id}`, {
+      await requestJson(`/api/reservations/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "CANCEL" }),
       });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error ?? "Could not cancel the reservation.");
       await loadDashboard();
       setNotice("Reservation cancelled.");
     } catch (cancelError) {
@@ -213,14 +176,13 @@ export default function Home() {
       );
     }
   }
-
   async function submitResource(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const values = new FormData(event.currentTarget);
     setSubmitting(true);
     setError("");
     try {
-      const response = await fetch("/api/resources", {
+      const result = await requestJson("/api/resources", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -230,8 +192,6 @@ export default function Home() {
           capacity: Number(values.get("capacity")),
         }),
       });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error ?? "Could not add the resource.");
       await loadDashboard();
       setNotice(`${result.resource.name} was added.`);
       setResourceFormOpen(false);
@@ -243,17 +203,14 @@ export default function Home() {
       setSubmitting(false);
     }
   }
-
   async function updateRoomStatus(resourceId: string, status: "AVAILABLE" | "MAINTENANCE") {
     setError("");
     try {
-      const response = await fetch(`/api/resources/${resourceId}`, {
+      const result = await requestJson(`/api/resources/${resourceId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error ?? "Could not update the room status.");
       await loadDashboard();
       setNotice(
         `${result.resource.name} is now ${status === "AVAILABLE" ? "available" : "under maintenance"}.`,
@@ -261,6 +218,56 @@ export default function Home() {
     } catch (statusError) {
       setError(
         statusError instanceof Error ? statusError.message : "Could not update the room status.",
+      );
+    }
+  }
+  async function submitMaintenance(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!maintenanceResource) return;
+    const values = new FormData(event.currentTarget);
+    setSubmitting(true);
+    setError("");
+    try {
+      await requestJson(
+        editingMaintenance ? `/api/maintenance/${editingMaintenance.id}` : "/api/maintenance",
+        {
+          method: editingMaintenance ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            resourceId: maintenanceResource.id,
+            startTime: `${values.get("date")}T${values.get("start")}:00`,
+            endTime: `${values.get("date")}T${values.get("end")}:00`,
+          }),
+        },
+      );
+      await loadDashboard();
+      setNotice(
+        editingMaintenance
+          ? "Maintenance schedule updated."
+          : `Maintenance scheduled for ${maintenanceResource.name}.`,
+      );
+      setMaintenanceResource(null);
+      setEditingMaintenance(null);
+    } catch (maintenanceError) {
+      setError(
+        maintenanceError instanceof Error
+          ? maintenanceError.message
+          : "Could not schedule maintenance.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+  async function cancelMaintenance(id: string) {
+    try {
+      await requestJson(`/api/maintenance/${id}`, { method: "DELETE" });
+      await loadDashboard();
+      setNotice("Maintenance schedule cancelled.");
+    } catch (maintenanceError) {
+      setError(
+        maintenanceError instanceof Error
+          ? maintenanceError.message
+          : "Could not cancel maintenance.",
       );
     }
   }
@@ -272,7 +279,7 @@ export default function Home() {
       resources.filter(
         (item) =>
           item.name.toLowerCase().includes(query.toLowerCase()) ||
-          item.type.toLowerCase().includes(query.toLowerCase()),
+          resourceTypeLabels[item.type].toLowerCase().includes(query.toLowerCase()),
       ),
     [query, resources],
   );
@@ -281,15 +288,17 @@ export default function Home() {
     setSelectedResourceId(
       resourceId || resources.find((item) => item.displayStatus !== "Maintenance")?.id || "",
     );
-    setBookingDate(today());
+    setBookingDate(toWorkspaceDateInputValue());
     setError("");
+    setBookingError("");
     setReservationFormOpen(true);
   };
   const openEdit = (reservation: Reservation) => {
     setEditingReservation(reservation);
     setSelectedResourceId(reservation.resource.id);
-    setBookingDate(date(reservation.startTime));
+    setBookingDate(toWorkspaceDateInputValue(reservation.startTime));
     setError("");
+    setBookingError("");
     setReservationFormOpen(true);
   };
 
@@ -302,7 +311,6 @@ export default function Home() {
       </main>
     );
   if (!user) return <LoginScreen loading={loading} error={error} onLogin={login} />;
-
   return (
     <main className="app-shell">
       <aside className="sidebar">
@@ -313,10 +321,15 @@ export default function Home() {
           </span>
         </div>
         <div className="workspace">
-          <span className="workspace-dot" /> Acme Workspace
+          <span className="workspace-dot" /> Workspace
         </div>
         <nav>
-          {["Overview", "Resources", "Reservations"].map((item) => (
+          {[
+            "Overview",
+            "Resources",
+            "Reservations",
+            ...(isAdmin ? ["Maintenance Schedules"] : []),
+          ].map((item) => (
             <button
               key={item}
               className={`nav-item ${activePage === item ? "active" : ""}`}
@@ -366,7 +379,7 @@ export default function Home() {
           </div>
         )}
         {error && (
-          <div className="notice">
+          <div className="notice notice-error">
             ! {error}
             <button onClick={() => setError("")}>×</button>
           </div>
@@ -472,8 +485,56 @@ export default function Home() {
                   onReserve={() => openReservation(resource.id)}
                   canManageStatus={isAdmin}
                   onStatusChange={updateRoomStatus}
+                  onScheduleMaintenance={(resourceId) =>
+                    setMaintenanceResource(
+                      resources.find((resource) => resource.id === resourceId) ?? null,
+                    )
+                  }
                 />
               ))}
+            </div>
+          </>
+        ) : activePage === "Maintenance Schedules" ? (
+          <>
+            <section className="list-toolbar">
+              <div>
+                <h2>Upcoming maintenance schedules</h2>
+                <p>Scheduled downtime for all resources.</p>
+              </div>
+            </section>
+            <div className="schedule-card">
+              {maintenanceSchedules.length ? (
+                maintenanceSchedules.map((item) => (
+                  <div className="schedule-row" key={item.id}>
+                    <b>
+                      {toWorkspaceDateInputValue(item.startTime)}
+                      <br />
+                      {formatWorkspaceTime(item.startTime)} - {formatWorkspaceTime(item.endTime)}
+                    </b>
+                    <span>
+                      <strong>Maintenance</strong>
+                      <small>{item.resource.name}</small>
+                    </span>
+                    <span>{item.resource.location}</span>
+                    <button
+                      className="row-action"
+                      onClick={() => {
+                        setMaintenanceResource(
+                          resources.find((resource) => resource.id === item.resource.id) ?? null,
+                        );
+                        setEditingMaintenance(item);
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button className="row-action" onClick={() => cancelMaintenance(item.id)}>
+                      Cancel
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <p className="empty-state">No upcoming maintenance is scheduled.</p>
+              )}
             </div>
           </>
         ) : (
@@ -507,11 +568,12 @@ export default function Home() {
           selectedResourceId={selectedResourceId}
           bookingDate={bookingDate}
           submitting={submitting}
-          error={error}
+          error={bookingError}
           onSubmit={submitReservation}
           onClose={() => {
             setReservationFormOpen(false);
             setEditingReservation(null);
+            setBookingError("");
           }}
           onResourceChange={setSelectedResourceId}
         />
@@ -524,312 +586,21 @@ export default function Home() {
           onClose={() => setResourceFormOpen(false)}
         />
       )}
-    </main>
-  );
-}
-
-function LoginScreen({
-  loading,
-  error,
-  onLogin,
-}: {
-  loading: boolean;
-  error: string;
-  onLogin: (role: "ADMIN" | "USER") => void;
-}) {
-  return (
-    <main className="app-shell">
-      <section className="content">
-        <section className="modal" style={{ margin: "10vh auto", maxWidth: 460 }}>
-          <p className="eyebrow">Reservely prototype</p>
-          <h1>Sign in</h1>
-          <p>Choose a demo account to test the role permissions.</p>
-          {error && <p className="form-error">{error}</p>}
-          <div className="modal-actions">
-            <button className="secondary-button" disabled={loading} onClick={() => onLogin("USER")}>
-              Continue as user
-            </button>
-            <button className="primary-button" disabled={loading} onClick={() => onLogin("ADMIN")}>
-              Continue as admin
-            </button>
-          </div>
-        </section>
-      </section>
-    </main>
-  );
-}
-function ReservationForm({
-  resources,
-  editingReservation,
-  selectedResourceId,
-  bookingDate,
-  submitting,
-  error,
-  onSubmit,
-  onClose,
-  onResourceChange,
-}: {
-  resources: Resource[];
-  editingReservation: Reservation | null;
-  selectedResourceId: string;
-  bookingDate: string;
-  submitting: boolean;
-  error: string;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  onClose: () => void;
-  onResourceChange: (id: string) => void;
-}) {
-  return (
-    <div className="modal-backdrop" role="presentation">
-      <form className="modal" onSubmit={onSubmit}>
-        <div className="modal-header">
-          <div>
-            <p className="eyebrow">{editingReservation ? "Manage booking" : "Create booking"}</p>
-            <h2>{editingReservation ? "Edit reservation" : "New reservation"}</h2>
-          </div>
-          <button type="button" className="close-button" onClick={onClose}>
-            ×
-          </button>
-        </div>
-        {error && <p className="form-error">{error}</p>}
-        <label>
-          Resource
-          <select
-            name="resourceId"
-            value={selectedResourceId}
-            onChange={(event) => onResourceChange(event.target.value)}
-            required
-          >
-            {resources
-              .filter((item) => item.displayStatus !== "Maintenance")
-              .map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-          </select>
-        </label>
-        <label>
-          Reservation title
-          <input
-            name="title"
-            defaultValue={editingReservation?.title}
-            placeholder="e.g. Sprint planning"
-            required
-          />
-        </label>
-        <div className="form-row">
-          <label>
-            Date
-            <input name="date" type="date" defaultValue={bookingDate} required />
-          </label>
-          <label>
-            Start time
-            <input
-              name="start"
-              type="time"
-              defaultValue={editingReservation ? time(editingReservation.startTime) : "10:00"}
-              required
-            />
-          </label>
-        </div>
-        <div className="form-row">
-          <label>
-            End time
-            <input
-              name="end"
-              type="time"
-              defaultValue={editingReservation ? time(editingReservation.endTime) : "11:00"}
-              required
-            />
-          </label>
-        </div>
-        <div className="modal-actions">
-          <button type="button" className="secondary-button" onClick={onClose}>
-            Cancel
-          </button>
-          <button className="primary-button" disabled={submitting}>
-            {submitting ? "Saving…" : editingReservation ? "Save changes" : "Confirm reservation"}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
-function ResourceForm({
-  submitting,
-  error,
-  onSubmit,
-  onClose,
-}: {
-  submitting: boolean;
-  error: string;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  onClose: () => void;
-}) {
-  return (
-    <div className="modal-backdrop" role="presentation">
-      <form className="modal" onSubmit={onSubmit}>
-        <div className="modal-header">
-          <div>
-            <p className="eyebrow">Admin tools</p>
-            <h2>Add resource</h2>
-          </div>
-          <button type="button" className="close-button" onClick={onClose}>
-            ×
-          </button>
-        </div>
-        {error && <p className="form-error">{error}</p>}
-        <label>
-          Name
-          <input name="name" placeholder="e.g. Boardroom A" required />
-        </label>
-        <div className="form-row">
-          <label>
-            Type
-            <input name="type" placeholder="Meeting room" required />
-          </label>
-          <label>
-            Capacity
-            <input name="capacity" type="number" min="1" defaultValue="1" required />
-          </label>
-        </div>
-        <label>
-          Location
-          <input name="location" placeholder="e.g. Level 5" required />
-        </label>
-        <div className="modal-actions">
-          <button type="button" className="secondary-button" onClick={onClose}>
-            Cancel
-          </button>
-          <button className="primary-button" disabled={submitting}>
-            {submitting ? "Saving…" : "Add resource"}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
-function Stat({
-  icon,
-  label,
-  value,
-  detail,
-  tone,
-}: {
-  icon: string;
-  label: string;
-  value: string;
-  detail: string;
-  tone: string;
-}) {
-  return (
-    <article className="stat-card">
-      <span className={`stat-icon ${tone}`}>{icon}</span>
-      <p>{label}</p>
-      <strong>{value}</strong>
-      <small>{detail}</small>
-    </article>
-  );
-}
-function ResourceCard({
-  resource,
-  onReserve,
-  canManageStatus = false,
-  onStatusChange,
-}: {
-  resource: Resource;
-  onReserve: () => void;
-  canManageStatus?: boolean;
-  onStatusChange?: (id: string, status: "AVAILABLE" | "MAINTENANCE") => void;
-}) {
-  return (
-    <article className="resource-card">
-      <div className={`resource-visual ${resource.color}`}>
-        <span>
-          {resource.type === "Equipment" ? "▰" : resource.type === "Creative space" ? "✦" : "▥"}
-        </span>
-      </div>
-      <div className="resource-copy">
-        <div>
-          <span className={`status ${resource.displayStatus.toLowerCase().replace(" ", "-")}`}>
-            {resource.displayStatus}
-          </span>
-          <h3>{resource.name}</h3>
-          <p>
-            {resource.type} · {resource.location}
-          </p>
-        </div>
-        <div className="card-footer">
-          <span>
-            ♙ {resource.capacity} {resource.capacity === 1 ? "item" : "people"}
-          </span>
-          {canManageStatus && resource.type === "Meeting room" && (
-            <select
-              aria-label={`Status for ${resource.name}`}
-              value={resource.status}
-              onChange={(event) =>
-                onStatusChange?.(resource.id, event.target.value as "AVAILABLE" | "MAINTENANCE")
-              }
-            >
-              <option value="AVAILABLE">Available</option>
-              <option value="MAINTENANCE">Maintenance</option>
-            </select>
-          )}
-          <button disabled={resource.displayStatus === "Maintenance"} onClick={onReserve}>
-            {resource.displayStatus === "Maintenance" ? "Unavailable" : "Reserve"} →
-          </button>
-        </div>
-      </div>
-    </article>
-  );
-}
-function Schedule({
-  reservations,
-  user,
-  onCancel,
-  onEdit,
-}: {
-  reservations: Reservation[];
-  user: User;
-  onCancel: (id: string) => void;
-  onEdit: (reservation: Reservation) => void;
-}) {
-  return (
-    <div className="schedule-card">
-      <div className="schedule-head">
-        <span>Time</span>
-        <span>Reservation</span>
-        <span>Resource</span>
-        <span>Status</span>
-      </div>
-      {reservations.length ? (
-        reservations.map((item) => (
-          <div className="schedule-row" key={item.id}>
-            <b>{item.time}</b>
-            <span>
-              <strong>{item.title}</strong>
-              <small>{item.user.name}</small>
-            </span>
-            <span>{item.resource.name}</span>
-            <span className={`status ${item.displayStatus.toLowerCase()}`}>
-              {item.displayStatus}
-            </span>
-            {(user.role === "ADMIN" || item.user.id === user.id) && (
-              <>
-                <button className="row-action" onClick={() => onEdit(item)}>
-                  Edit
-                </button>
-                <button className="row-action" onClick={() => onCancel(item.id)}>
-                  Cancel
-                </button>
-              </>
-            )}
-          </div>
-        ))
-      ) : (
-        <p className="empty-state">No reservations yet. Create one to get started.</p>
+      {maintenanceResource && (
+        <MaintenanceForm
+          resource={maintenanceResource}
+          date={toWorkspaceDateInputValue()}
+          submitting={submitting}
+          error={error}
+          onSubmit={submitMaintenance}
+          onClose={() => {
+            setMaintenanceResource(null);
+            setEditingMaintenance(null);
+            setError("");
+          }}
+          schedule={editingMaintenance ?? undefined}
+        />
       )}
-    </div>
+    </main>
   );
 }

@@ -17,6 +17,12 @@ enum ResourceStatus {
   MAINTENANCE
 }
 
+enum ResourceType {
+  MEETING_ROOM
+  CREATIVE_SPACE
+  EQUIPMENT
+}
+
 enum ReservationStatus {
   CONFIRMED
   CANCELLED
@@ -33,15 +39,28 @@ model User {
 }
 
 model Resource {
-  id           String         @id @default(uuid()) @db.Uuid
-  name         String         @unique
-  type         String
-  location     String
-  capacity     Int
-  status       ResourceStatus @default(AVAILABLE)
-  reservations Reservation[]
-  createdAt    DateTime       @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime       @updatedAt @db.Timestamptz(6)
+  id                 String              @id @default(uuid()) @db.Uuid
+  name               String              @unique
+  type               ResourceType
+  location           String
+  capacity           Int
+  status             ResourceStatus      @default(AVAILABLE)
+  reservations       Reservation[]
+  maintenanceWindows MaintenanceWindow[]
+  createdAt          DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime            @updatedAt @db.Timestamptz(6)
+}
+
+model MaintenanceWindow {
+  id         String   @id @default(uuid()) @db.Uuid
+  resourceId String   @db.Uuid
+  startTime  DateTime @db.Timestamptz(6)
+  endTime    DateTime @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+
+  resource Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@index([resourceId, startTime, endTime])
 }
 
 model Reservation {
