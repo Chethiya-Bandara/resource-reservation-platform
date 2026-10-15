@@ -493,6 +493,19 @@ nav {
 .schedule-row small {
   display: block;
 }
+.schedule-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+.schedule-actions .row-action {
+  border: 0;
+  background: transparent;
+  color: #6745e9;
+  font-size: 12px;
+  font-weight: 700;
+}
 .schedule-row strong {
   color: #302b3e;
   margin-bottom: 4px;

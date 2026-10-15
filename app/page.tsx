@@ -471,6 +471,7 @@ export default function Home() {
               user={user}
               onCancel={cancelReservation}
               onEdit={openEdit}
+              maskOtherUsers={!isAdmin}
             />
           </>
         ) : activePage === "Resources" ? (
@@ -536,20 +537,22 @@ export default function Home() {
                       <small>{item.resource.name}</small>
                     </span>
                     <span>{item.resource.location}</span>
-                    <button
-                      className="row-action"
-                      onClick={() => {
-                        setMaintenanceResource(
-                          resources.find((resource) => resource.id === item.resource.id) ?? null,
-                        );
-                        setEditingMaintenance(item);
-                      }}
-                    >
-                      Update
-                    </button>
-                    <button className="row-action" onClick={() => deleteMaintenance(item.id)}>
-                      Delete
-                    </button>
+                    <div className="schedule-actions">
+                      <button
+                        className="row-action"
+                        onClick={() => {
+                          setMaintenanceResource(
+                            resources.find((resource) => resource.id === item.resource.id) ?? null,
+                          );
+                          setEditingMaintenance(item);
+                        }}
+                      >
+                        Update
+                      </button>
+                      <button className="row-action" onClick={() => deleteMaintenance(item.id)}>
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 ))
               ) : (

@@ -437,11 +437,13 @@ export function Schedule({
   user,
   onCancel,
   onEdit,
+  maskOtherUsers = false,
 }: {
   reservations: Reservation[];
   user: User;
   onCancel: (id: string) => void;
   onEdit: (reservation: Reservation) => void;
+  maskOtherUsers?: boolean;
 }) {
   return (
     <div className="schedule-card">
@@ -460,22 +462,28 @@ export function Schedule({
               {item.time}
             </b>
             <span>
-              <strong>{item.title}</strong>
-              <small>{item.user.name}</small>
+              {maskOtherUsers && item.user.id !== user.id ? (
+                <strong>Reserved</strong>
+              ) : (
+                <>
+                  <strong>{item.title}</strong>
+                  <small>{item.user.name}</small>
+                </>
+              )}
             </span>
             <span>{item.resource.name}</span>
             <span className={`status ${item.displayStatus.toLowerCase()}`}>
               {item.displayStatus}
             </span>
             {(user.role === "ADMIN" || item.user.id === user.id) && (
-              <>
+              <div className="schedule-actions">
                 <button className="row-action" onClick={() => onEdit(item)}>
                   Edit
                 </button>
                 <button className="row-action" onClick={() => onCancel(item.id)}>
                   Cancel
                 </button>
-              </>
+              </div>
             )}
           </div>
         ))
