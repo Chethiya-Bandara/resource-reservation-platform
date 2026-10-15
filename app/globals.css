@@ -684,6 +684,23 @@ nav {
   color: #747582;
   font-size: 13px;
 }
+.demo-credentials {
+  margin: 18px 0;
+  border-radius: 8px;
+  background: #f1f2f4;
+  padding: 12px;
+  color: #5d5e6a;
+  font-size: 12px;
+  line-height: 1.65;
+  text-align: left;
+}
+.demo-credentials strong,
+.demo-credentials span {
+  display: block;
+}
+.demo-credentials strong {
+  color: #454553;
+}
 @media (max-width: 900px) {
   .sidebar {
     width: 64px;

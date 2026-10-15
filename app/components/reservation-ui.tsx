@@ -48,6 +48,14 @@ export function LoginScreen({
           ) : mode === "login" ? (
             <>
               <p>Sign in with your account.</p>
+              <div className="demo-credentials">
+                <strong>Demo credentials</strong> <br />
+                <p>
+                  Admin: chethiya@reservely.local / Reservely123
+                  <br />
+                  User: maya@reservely.local / Reservely123
+                </p>
+              </div>
               <form onSubmit={onLogin}>
                 <label>
                   Email
