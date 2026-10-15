@@ -126,4 +126,4 @@ records.
 
 ## Prototype boundaries
 
-Before a public deployment, add signed sessions, invite-only admin creation, password reset, rate limiting, and audit logs.
+Before a public deployment, add signed sessions, invite-only admin creation, password reset, remove demo data, add rate limiting, and audit logs.
