@@ -1,4 +1,5 @@
 import type { FormEvent } from "react";
+import { useState } from "react";
 
 import { formatWorkspaceTime, toWorkspaceDateInputValue } from "@/lib/workspace-time";
 import {
@@ -12,27 +13,98 @@ export function LoginScreen({
   loading,
   error,
   onLogin,
+  onRegister,
 }: {
   loading: boolean;
   error: string;
-  onLogin: (role: "ADMIN" | "USER") => void;
+  onLogin: (event: FormEvent<HTMLFormElement>) => void;
+  onRegister: (event: FormEvent<HTMLFormElement>) => void;
 }) {
+  const [mode, setMode] = useState<"start" | "login" | "register">("start");
   return (
-    <main className="app-shell">
-      <section className="content">
-        <section className="modal" style={{ margin: "10vh auto", maxWidth: 460 }}>
-          <p className="eyebrow">Reservely prototype</p>
-          <h1>Sign in</h1>
-          <p>Choose a demo account to test the role permissions.</p>
+    <main className="auth-shell">
+      <section className="auth-card">
+        <div className="auth-emblem">R</div>
+        <section className="auth-panel">
+          <p className="eyebrow">RESERVELY</p>
+          <h1>
+            {mode === "start"
+              ? "Welcome to Reservely"
+              : mode === "login"
+                ? "Sign in"
+                : "Create an account"}
+          </h1>
           {error && <p className="form-error">{error}</p>}
-          <div className="modal-actions">
-            <button className="secondary-button" disabled={loading} onClick={() => onLogin("USER")}>
-              Continue as user
-            </button>
-            <button className="primary-button" disabled={loading} onClick={() => onLogin("ADMIN")}>
-              Continue as admin
-            </button>
-          </div>
+          {mode === "start" ? (
+            <div className="modal-actions">
+              <button className="secondary-button" onClick={() => setMode("login")}>
+                Login
+              </button>
+              <button className="primary-button" onClick={() => setMode("register")}>
+                Register
+              </button>
+            </div>
+          ) : mode === "login" ? (
+            <>
+              <p>Sign in with your account.</p>
+              <form onSubmit={onLogin}>
+                <label>
+                  Email
+                  <input name="email" type="email" required />
+                </label>
+                <label>
+                  Password
+                  <input name="password" type="password" minLength={8} required />
+                </label>
+                <div className="modal-actions">
+                  <button className="primary-button" disabled={loading}>
+                    Sign in
+                  </button>
+                </div>
+              </form>
+              <p>
+                New here?{" "}
+                <button className="text-button" onClick={() => setMode("register")}>
+                  Register
+                </button>
+              </p>
+            </>
+          ) : (
+            <>
+              <form onSubmit={onRegister}>
+                <label>
+                  Name
+                  <input name="name" required />
+                </label>
+                <label>
+                  Email
+                  <input name="email" type="email" required />
+                </label>
+                <label>
+                  Password
+                  <input name="password" type="password" minLength={8} required />
+                </label>
+                <label>
+                  Account type
+                  <select name="role">
+                    <option value="MEMBER">User</option>
+                    <option value="ADMIN">Admin</option>
+                  </select>
+                </label>
+                <div className="modal-actions">
+                  <button className="secondary-button" disabled={loading}>
+                    Register
+                  </button>
+                </div>
+              </form>
+              <p>
+                Already have an account?{" "}
+                <button className="text-button" onClick={() => setMode("login")}>
+                  Login
+                </button>
+              </p>
+            </>
+          )}
         </section>
       </section>
     </main>

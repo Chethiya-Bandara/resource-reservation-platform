@@ -1,4 +1,5 @@
 import { ResourceStatus, ResourceType, UserRole } from "@/src/generated/prisma/enums";
+import { hash } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
 const resources = [
@@ -33,16 +34,27 @@ const resources = [
 ];
 
 export async function ensureDemoData() {
+  const demoPasswordHash = await hash("Reservely123", 12);
   await prisma.user.upsert({
     where: { email: "chethiya@reservely.local" },
-    update: { name: "Chethiya Bandara", role: UserRole.ADMIN },
-    create: { name: "Chethiya Bandara", email: "chethiya@reservely.local", role: UserRole.ADMIN },
+    update: { name: "Chethiya Bandara", role: UserRole.ADMIN, passwordHash: demoPasswordHash },
+    create: {
+      name: "Chethiya Bandara",
+      email: "chethiya@reservely.local",
+      role: UserRole.ADMIN,
+      passwordHash: demoPasswordHash,
+    },
   });
 
   await prisma.user.upsert({
     where: { email: "maya@reservely.local" },
-    update: { name: "Maya Chen", role: UserRole.MEMBER },
-    create: { name: "Maya Chen", email: "maya@reservely.local", role: UserRole.MEMBER },
+    update: { name: "Maya Chen", role: UserRole.MEMBER, passwordHash: demoPasswordHash },
+    create: {
+      name: "Maya Chen",
+      email: "maya@reservely.local",
+      role: UserRole.MEMBER,
+      passwordHash: demoPasswordHash,
+    },
   });
 
   await Promise.all(

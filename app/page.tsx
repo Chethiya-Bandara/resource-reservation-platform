@@ -89,19 +89,45 @@ export default function Home() {
     return () => window.clearTimeout(initializeTimer);
   }, []);
 
-  async function login(role: "ADMIN" | "USER") {
+  async function login(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const values = new FormData(event.currentTarget);
     setLoading(true);
     setError("");
     try {
       const result = await requestJson("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role }),
+        body: JSON.stringify({ email: values.get("email"), password: values.get("password") }),
       });
       setUser(result.user);
       await loadDashboard();
     } catch (loginError) {
       setError(loginError instanceof Error ? loginError.message : "Could not sign in.");
+    } finally {
+      setLoading(false);
+    }
+  }
+  async function register(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const values = new FormData(event.currentTarget);
+    setLoading(true);
+    setError("");
+    try {
+      const result = await requestJson("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: values.get("name"),
+          email: values.get("email"),
+          password: values.get("password"),
+          role: values.get("role"),
+        }),
+      });
+      setUser(result.user);
+      await loadDashboard();
+    } catch (registerError) {
+      setError(registerError instanceof Error ? registerError.message : "Could not register.");
     } finally {
       setLoading(false);
     }
@@ -226,7 +252,6 @@ export default function Home() {
     if (!maintenanceResource) return;
     const values = new FormData(event.currentTarget);
     setSubmitting(true);
-    setError("");
     try {
       await requestJson(
         editingMaintenance ? `/api/maintenance/${editingMaintenance.id}` : "/api/maintenance",
@@ -241,13 +266,9 @@ export default function Home() {
         },
       );
       await loadDashboard();
-      setNotice(
-        editingMaintenance
-          ? "Maintenance schedule updated."
-          : `Maintenance scheduled for ${maintenanceResource.name}.`,
-      );
       setMaintenanceResource(null);
       setEditingMaintenance(null);
+      setNotice("Maintenance scheduled.");
     } catch (maintenanceError) {
       setError(
         maintenanceError instanceof Error
@@ -258,16 +279,16 @@ export default function Home() {
       setSubmitting(false);
     }
   }
-  async function cancelMaintenance(id: string) {
+  async function deleteMaintenance(id: string) {
     try {
       await requestJson(`/api/maintenance/${id}`, { method: "DELETE" });
       await loadDashboard();
-      setNotice("Maintenance schedule cancelled.");
+      setNotice("Maintenance deleted.");
     } catch (maintenanceError) {
       setError(
         maintenanceError instanceof Error
           ? maintenanceError.message
-          : "Could not cancel maintenance.",
+          : "Could not delete maintenance.",
       );
     }
   }
@@ -310,7 +331,8 @@ export default function Home() {
         </section>
       </main>
     );
-  if (!user) return <LoginScreen loading={loading} error={error} onLogin={login} />;
+  if (!user)
+    return <LoginScreen loading={loading} error={error} onLogin={login} onRegister={register} />;
   return (
     <main className="app-shell">
       <aside className="sidebar">
@@ -379,7 +401,7 @@ export default function Home() {
           </div>
         )}
         {error && (
-          <div className="notice notice-error">
+          <div className="notice">
             ! {error}
             <button onClick={() => setError("")}>×</button>
           </div>
@@ -485,10 +507,8 @@ export default function Home() {
                   onReserve={() => openReservation(resource.id)}
                   canManageStatus={isAdmin}
                   onStatusChange={updateRoomStatus}
-                  onScheduleMaintenance={(resourceId) =>
-                    setMaintenanceResource(
-                      resources.find((resource) => resource.id === resourceId) ?? null,
-                    )
+                  onScheduleMaintenance={(id) =>
+                    setMaintenanceResource(resources.find((resource) => resource.id === id) ?? null)
                   }
                 />
               ))}
@@ -498,8 +518,8 @@ export default function Home() {
           <>
             <section className="list-toolbar">
               <div>
-                <h2>Upcoming maintenance schedules</h2>
-                <p>Scheduled downtime for all resources.</p>
+                <h2>Maintenance Schedules</h2>
+                <p>Upcoming maintenance for all resources.</p>
               </div>
             </section>
             <div className="schedule-card">
@@ -525,10 +545,10 @@ export default function Home() {
                         setEditingMaintenance(item);
                       }}
                     >
-                      Edit
+                      Update
                     </button>
-                    <button className="row-action" onClick={() => cancelMaintenance(item.id)}>
-                      Cancel
+                    <button className="row-action" onClick={() => deleteMaintenance(item.id)}>
+                      Delete
                     </button>
                   </div>
                 ))
@@ -593,11 +613,7 @@ export default function Home() {
           submitting={submitting}
           error={error}
           onSubmit={submitMaintenance}
-          onClose={() => {
-            setMaintenanceResource(null);
-            setEditingMaintenance(null);
-            setError("");
-          }}
+          onClose={() => setMaintenanceResource(null)}
           schedule={editingMaintenance ?? undefined}
         />
       )}
